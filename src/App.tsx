@@ -12,13 +12,27 @@ import {
   Image as ImageIcon,
   Calendar,
   Type,
-  Clock
+  Clock,
+  Cloud,
+  CloudOff,
+  CloudFog,
+  User,
+  LogOut
 } from 'lucide-react';
 import { Note, AppState } from './types';
 import Editor, { EditorHandle } from './components/Editor';
 import Preview from './components/Preview';
+import { 
+  getNotes, 
+  createNote as supabaseCreateNote, 
+  updateNote as supabaseUpdateNote, 
+  deleteNote as supabaseDeleteNote,
+  subscribeToNotes,
+  initDatabase,
+  SyncStatus
+} from './supabase';
+import { useAuth } from './auth/AuthContext';
 
-// --- Storage & Defaults ---
 const STORAGE_KEY = 'lumen_notes_v2';
 
 const loadNotes = (): Note[] => {
@@ -73,60 +87,147 @@ This surface is designed for this kind of work. Quiet. Powerful.
 };
 
 export default function App() {
+  const { user, signOut, profile } = useAuth();
   const [appState, setAppState] = useState<AppState>(AppState.BOOTING);
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('syncing');
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   
-  // Navigation History
   const [history, setHistory] = useState<string[]>([]);
-  
-  // "mode" determines the interaction model: 'write' (editor) or 'read' (preview)
   const [mode, setMode] = useState<'write' | 'read'>('read');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Deletion State
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<EditorHandle>(null);
 
-  // Keep a ref of state for event listeners to avoid stale closures without frequent re-binding
-  const stateRef = useRef({ notes, activeNoteId, sidebarOpen, mode, history });
+  const stateRef = useRef({ notes, activeNoteId, sidebarOpen, mode, history, syncStatus });
   useEffect(() => {
-    stateRef.current = { notes, activeNoteId, sidebarOpen, mode, history };
-  }, [notes, activeNoteId, sidebarOpen, mode, history]);
+    stateRef.current = { notes, activeNoteId, sidebarOpen, mode, history, syncStatus };
+  }, [notes, activeNoteId, sidebarOpen, mode, history, syncStatus]);
 
-  // Initial Load
+  const SyncIcon = () => {
+    switch (syncStatus) {
+      case 'synced':
+        return <Cloud size={14} className="text-emerald-600" />;
+      case 'syncing':
+        return <CloudFog size={14} className="text-amber-600 animate-pulse" />;
+      case 'offline':
+        return <CloudOff size={14} className="text-gray-400" />;
+      case 'error':
+        return <CloudOff size={14} className="text-red-500" />;
+      default:
+        return <Cloud size={14} />;
+    }
+  };
+
   useEffect(() => {
-    setTimeout(() => {
-      const saved = loadNotes();
-      let initialId = null;
-      if (saved.length === 0) {
-        setNotes([DEFAULT_NOTE]);
-        initialId = DEFAULT_NOTE.id;
-      } else {
-        setNotes(saved);
-        initialId = saved[0].id;
+    const initializeApp = async () => {
+      if (!user) {
+        setAppState(AppState.READY);
+        return;
       }
-      setActiveNoteId(initialId);
-      setHistory([initialId]);
-      setAppState(AppState.READY);
-    }, 800);
-  }, []);
+      
+      setSyncStatus('syncing');
+      
+      const dbReady = await initDatabase(user.id);
+      
+      if (!dbReady) {
+        console.log('Supabase not available, using local storage fallback');
+      }
 
-  // Persistence
+      try {
+        const dbNotes = await getNotes(user.id);
+        
+        if (dbNotes.length === 0) {
+          const localNotes = await loadNotes();
+          if (localNotes.length === 0) {
+            const newNote: Note = {
+              id: 'init-001',
+              title: 'On the Nature of Thought',
+              content: DEFAULT_NOTE.content,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              tags: ['philosophy']
+            };
+            
+            if (dbReady) {
+              const created = await supabaseCreateNote(user.id, { title: newNote.title, content: newNote.content, tags: newNote.tags });
+              if (created) {
+                setNotes([created]);
+                setActiveNoteId(created.id);
+                setHistory([created.id]);
+              } else {
+                setNotes([newNote]);
+                setActiveNoteId(newNote.id);
+                setHistory([newNote.id]);
+                saveNotes([newNote]);
+              }
+            } else {
+              setNotes([newNote]);
+              setActiveNoteId(newNote.id);
+              setHistory([newNote.id]);
+              saveNotes([newNote]);
+            }
+          } else {
+            setNotes(localNotes);
+            setActiveNoteId(localNotes[0].id);
+            setHistory([localNotes[0].id]);
+            saveNotes(localNotes);
+          }
+        } else {
+          setNotes(dbNotes);
+          setActiveNoteId(dbNotes[0].id);
+          setHistory([dbNotes[0].id]);
+          saveNotes(dbNotes);
+        }
+        
+        setSyncStatus('synced');
+      } catch (error) {
+        console.error('Failed to load notes:', error);
+        setSyncStatus('error');
+        
+        const localNotes = await loadNotes();
+        if (localNotes.length > 0) {
+          setNotes(localNotes);
+          setActiveNoteId(localNotes[0].id);
+          setHistory([localNotes[0].id]);
+        }
+      }
+      
+      setAppState(AppState.READY);
+    };
+
+    initializeApp();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const unsubscribe = subscribeToNotes(user.id, (updatedNotes) => {
+      if (updatedNotes.length > 0) {
+        setNotes(updatedNotes);
+        saveNotes(updatedNotes);
+        setSyncStatus('synced');
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user]);
+
   useEffect(() => {
     if (appState === AppState.READY) {
       saveNotes(notes);
     }
   }, [notes, appState]);
 
-  // Auto-scroll Sidebar to Active Note
   useEffect(() => {
     if (activeNoteId && sidebarOpen) {
-      // Use timeout to ensure DOM is fully updated (e.g. after search filter)
       const timer = setTimeout(() => {
         const el = document.getElementById(`note-item-${activeNoteId}`);
         if (el) {
@@ -137,13 +238,11 @@ export default function App() {
     }
   }, [activeNoteId, sidebarOpen, searchQuery]);
 
-  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const { notes, activeNoteId, sidebarOpen } = stateRef.current;
       const meta = e.metaKey || e.ctrlKey;
 
-      // Cmd + N: New Note
       if (meta && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         const newNote: Note = {
@@ -160,40 +259,35 @@ export default function App() {
         setMode('write');
       }
 
-      // Cmd + E: Write Mode
       if (meta && e.key.toLowerCase() === 'e') {
         e.preventDefault();
         setMode('write');
       }
 
-      // Cmd + P: Read Mode
       if (meta && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         setMode('read');
       }
 
-      // Cmd + \ : Toggle Sidebar
       if (meta && e.key === '\\') {
         e.preventDefault();
         setSidebarOpen(!sidebarOpen);
       }
       
-      // Cmd + . : Toggle Right Sidebar
       if (meta && e.key === '.') {
         e.preventDefault();
         setRightSidebarOpen(prev => !prev);
       }
 
-      // Cmd + K : Focus Search
       if (meta && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         if (!sidebarOpen) setSidebarOpen(true);
         setTimeout(() => searchInputRef.current?.focus(), 50);
       }
 
-      // Escape to cancel delete modal
       if (e.key === 'Escape') {
         setNoteToDelete(null);
+        setShowProfileMenu(false);
       }
     };
 
@@ -205,7 +299,6 @@ export default function App() {
     notes.find(n => n.id === activeNoteId) || null
   , [notes, activeNoteId]);
 
-  // Derived Stats
   const stats = useMemo(() => {
     if (!activeNote) return { words: 0, chars: 0 };
     const text = activeNote.content.trim();
@@ -229,25 +322,57 @@ export default function App() {
     setActiveNoteId(prevId);
   };
 
-  const handleUpdateNote = useCallback((content: string) => {
-    if (!activeNoteId) return;
-    setNotes(prev => prev.map(n => 
+  const handleUpdateNote = useCallback(async (content: string) => {
+    if (!activeNoteId || !user) return;
+    
+    setSyncStatus('syncing');
+    
+    const updatedNotes = notes.map(n => 
       n.id === activeNoteId 
         ? { ...n, content, updatedAt: Date.now() } 
         : n
-    ));
-  }, [activeNoteId]);
+    );
+    
+    setNotes(updatedNotes);
+    
+    const activeNote = updatedNotes.find(n => n.id === activeNoteId);
+    if (activeNote) {
+      const success = await supabaseUpdateNote(activeNote, user.id);
+      if (success) {
+        setSyncStatus('synced');
+      } else {
+        setSyncStatus('error');
+      }
+    }
+  }, [notes, activeNoteId, user]);
 
-  const handleUpdateTitle = useCallback((title: string) => {
-    if (!activeNoteId) return;
-    setNotes(prev => prev.map(n => 
+  const handleUpdateTitle = useCallback(async (title: string) => {
+    if (!activeNoteId || !user) return;
+    
+    setSyncStatus('syncing');
+    
+    const updatedNotes = notes.map(n => 
       n.id === activeNoteId 
         ? { ...n, title, updatedAt: Date.now() } 
         : n
-    ));
-  }, [activeNoteId]);
+    );
+    
+    setNotes(updatedNotes);
+    
+    const activeNote = updatedNotes.find(n => n.id === activeNoteId);
+    if (activeNote) {
+      const success = await supabaseUpdateNote(activeNote, user.id);
+      if (success) {
+        setSyncStatus('synced');
+      } else {
+        setSyncStatus('error');
+      }
+    }
+  }, [notes, activeNoteId, user]);
 
-  const handleCreateNote = () => {
+  const handleCreateNote = async () => {
+    if (!user) return;
+    
     const newNote: Note = {
       id: `note-${Date.now()}`,
       title: 'Untitled Entry',
@@ -256,10 +381,21 @@ export default function App() {
       updatedAt: Date.now(),
       tags: []
     };
+    
+    setSyncStatus('syncing');
+    
     setNotes([newNote, ...notes]);
     setActiveNoteId(newNote.id);
     setHistory(h => [...h, newNote.id]);
     setMode('write');
+    
+    const created = await supabaseCreateNote(user.id, { title: newNote.title, content: newNote.content, tags: newNote.tags });
+    if (created) {
+      setNotes(prev => prev.map(n => n.id === newNote.id ? created : n));
+      setSyncStatus('synced');
+    } else {
+      setSyncStatus('error');
+    }
   };
 
   const handleInsertImage = () => {
@@ -268,12 +404,9 @@ export default function App() {
       const imageMarkdown = `\n![Image Description](${url})\n`;
       
       if (mode !== 'write') {
-        // If in read mode, we update content first, then switch.
-        // This ensures content is ready when Editor mounts.
         handleUpdateNote(activeNote.content + imageMarkdown);
         setMode('write');
       } else {
-        // In write mode, try to insert at cursor
         if (editorRef.current) {
           editorRef.current.insertAtCursor(imageMarkdown);
         } else {
@@ -287,8 +420,12 @@ export default function App() {
     setNoteToDelete(id);
   };
 
-  const executeDelete = () => {
-    if (!noteToDelete) return;
+  const executeDelete = async () => {
+    if (!noteToDelete || !user) return;
+    
+    setSyncStatus('syncing');
+    
+    const success = await supabaseDeleteNote(noteToDelete, user.id);
     
     const newNotes = notes.filter(n => n.id !== noteToDelete);
     setNotes(newNotes);
@@ -298,6 +435,12 @@ export default function App() {
     }
     setNoteToDelete(null);
     setRightSidebarOpen(false);
+    
+    if (success) {
+      setSyncStatus('synced');
+    } else {
+      setSyncStatus('error');
+    }
   };
 
   const filteredNotes = useMemo(() => {
@@ -306,6 +449,13 @@ export default function App() {
       n.content.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [notes, searchQuery]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    setNotes([]);
+    setActiveNoteId(null);
+    setHistory([]);
+  };
 
   if (appState === AppState.BOOTING) {
     return (
@@ -320,7 +470,6 @@ export default function App() {
   return (
     <div className="flex h-screen w-screen bg-[var(--bg-paper)] text-[var(--text-body)] transition-colors duration-500 relative overflow-hidden">
       
-      {/* Sidebar - Quiet, Collapsible */}
       <aside 
         className={`
           flex-shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] 
@@ -396,10 +545,8 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main Canvas */}
       <main className="flex-1 flex flex-col relative min-w-0 transition-all duration-500">
         
-        {/* Top Navigation - Minimalist */}
         <header className="h-16 flex items-center justify-between px-6 md:px-12 flex-shrink-0 z-20 bg-[var(--bg-paper)]/80 backdrop-blur-sm">
           <div className="flex items-center gap-4">
             <button 
@@ -412,7 +559,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-             {/* Mode Toggles */}
             <div className="flex items-center gap-1 md:gap-2 bg-[var(--bg-sidebar)] rounded-full p-1 border border-[var(--border-subtle)]">
               <button
                 onClick={() => setMode('read')}
@@ -438,7 +584,37 @@ export default function App() {
               </button>
             </div>
             
-            {/* Action Tools */}
+            <div 
+              className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--bg-sidebar)] border border-[var(--border-subtle)]"
+              title={`Sync Status: ${syncStatus}`}
+            >
+              <SyncIcon />
+            </div>
+            
+            <div className="relative">
+              <button
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] hover:border-[var(--accent)] transition-colors"
+              >
+                <User size={16} className="text-[var(--text-muted)]" />
+                <span className="hidden md:inline font-ui text-xs text-[var(--text-body)]">
+                  {profile?.display_name || user?.email?.split('@')[0] || 'User'}
+                </span>
+              </button>
+              
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-[var(--border-subtle)] rounded-sm shadow-lg py-1 z-50">
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm font-ui text-[var(--text-body)] hover:bg-[var(--bg-sidebar)] transition-colors"
+                  >
+                    <LogOut size={14} />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+            
             {activeNote && (
                <button 
                 onClick={handleInsertImage}
@@ -461,12 +637,10 @@ export default function App() {
           </div>
         </header>
 
-        {/* Content Area */}
         <div className="flex-1 overflow-y-auto relative scroll-smooth">
           <div className="max-w-3xl mx-auto px-6 md:px-12 py-12 md:py-16 min-h-full flex flex-col">
             {activeNote ? (
               <>
-                {/* Title Input - Always Visible but styled subtly */}
                 <input
                   type="text"
                   value={activeNote.title}
@@ -501,7 +675,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Right Sidebar - Note Info & Actions */}
       <aside 
         className={`
           flex-shrink-0 bg-[var(--bg-paper)] border-l border-[var(--border-subtle)] 
@@ -551,8 +724,8 @@ export default function App() {
               <div>
                  <h3 className="font-ui text-[10px] font-semibold tracking-[0.2em] text-[var(--text-muted)] uppercase mb-4">Actions</h3>
                  <button 
-                  onClick={handleInsertImage}
-                  className="w-full flex items-center gap-3 group text-left"
+                   onClick={handleInsertImage}
+                   className="w-full flex items-center gap-3 group text-left"
                  >
                    <span className="w-8 h-8 rounded-full border border-[var(--border-subtle)] flex items-center justify-center group-hover:border-[var(--accent)] group-hover:text-[var(--accent)] transition-colors bg-white">
                      <ImageIcon size={14} />
@@ -577,7 +750,6 @@ export default function App() {
         </div>
       </aside>
       
-      {/* Delete Confirmation Modal */}
       {noteToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#292524]/10 backdrop-blur-[2px] animate-[fade-in_0.2s_ease-out]">
           <div className="bg-[var(--bg-paper)] border border-[var(--border-subtle)] p-8 max-w-sm w-full shadow-2xl shadow-[#292524]/10 transform scale-100 animate-[fade-in_0.3s_ease-out] relative">
