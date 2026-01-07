@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LUMEN</title>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=JetBrains+Mono:wght@400&family=Work+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <style>
+      :root {
+        --bg-paper: #FAFAF9;     /* Stone 50 */
+        --bg-sidebar: #F5F5F4;   /* Stone 100 */
+        --text-body: #292524;    /* Stone 800 */
+        --text-muted: #78716C;   /* Stone 500 */
+        --border-subtle: #E7E5E4; /* Stone 200 */
+        --accent: #3C5F5A;       /* Muted Deep Teal */
+        
+        --font-body: 'Crimson Pro', serif;
+        --font-ui: 'Work Sans', sans-serif;
+        --font-mono: 'JetBrains Mono', monospace;
+      }
+
+      body {
+        background-color: var(--bg-paper);
+        color: var(--text-body);
+        font-family: var(--font-body);
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      /* Scrollbar Styling - Minimalist */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #D6D3D1;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #A8A29E;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      /* Selection */
+      ::selection {
+        background: rgba(60, 95, 90, 0.15); /* Accent with low opacity */
+        color: inherit;
+      }
+
+      /* Editor Specifics */
+      .editor-textarea {
+        line-height: 1.75;
+        font-feature-settings: "kern", "liga", "onum";
+      }
+
+      /* Transitions */
+      .fade-enter { opacity: 0; }
+      .fade-enter-active { opacity: 1; transition: opacity 300ms ease-in-out; }
+      .fade-exit { opacity: 1; }
+      .fade-exit-active { opacity: 0; transition: opacity 300ms ease-in-out; }
+
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
+    "remark-gfm": "https://esm.sh/remark-gfm@^4.0.1",
+    "remark-math": "https://esm.sh/remark-math@^6.0.0",
+    "rehype-katex": "https://esm.sh/rehype-katex@^7.0.1",
+    "mermaid": "https://esm.sh/mermaid@^11.12.2"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
