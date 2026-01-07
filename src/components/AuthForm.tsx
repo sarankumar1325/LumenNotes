@@ -130,6 +130,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onModeChange }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-[#FAFAF9] border border-[#E7E5E4] rounded-sm py-3 pl-12 pr-4 font-body text-[#292524] placeholder:text-[#A8A29E] focus:outline-none focus:border-[#3C5F5A] focus:ring-1 focus:ring-[#3C5F5A] transition-all"
                 placeholder="you@example.com"
+                autoComplete="email"
               />
             </div>
           </div>
@@ -147,6 +148,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onModeChange }) => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-[#FAFAF9] border border-[#E7E5E4] rounded-sm py-3 pl-12 pr-4 font-body text-[#292524] placeholder:text-[#A8A29E] focus:outline-none focus:border-[#3C5F5A] focus:ring-1 focus:ring-[#3C5F5A] transition-all"
                   placeholder="••••••••"
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 />
               </div>
             </div>
@@ -165,6 +167,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ mode, onModeChange }) => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full bg-[#FAFAF9] border border-[#E7E5E4] rounded-sm py-3 pl-12 pr-4 font-body text-[#292524] placeholder:text-[#A8A29E] focus:outline-none focus:border-[#3C5F5A] focus:ring-1 focus:ring-[#3C5F5A] transition-all"
                   placeholder="••••••••"
+                  autoComplete="new-password"
                 />
               </div>
             </div>

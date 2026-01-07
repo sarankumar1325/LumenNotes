@@ -3,12 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LUMEN</title>
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    
+    <!-- Primary Meta Tags -->
+    <title>Lumen - A Thinking Space for Clarity</title>
+    <meta name="title" content="Lumen - A Thinking Space for Clarity" />
+    <meta name="description" content="Lumen is a minimalist writing environment designed for deep thinking. Capture ideas, explore thoughts, and find clarity in a distraction-free space." />
+    <meta name="keywords" content="writing, notes, thinking, clarity, minimal, markdown, journal" />
+    <meta name="author" content="Lumen" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://lumen.app/" />
+    <meta property="og:title" content="Lumen - A Thinking Space for Clarity" />
+    <meta property="og:description" content="A minimalist writing environment designed for deep thinking. Capture ideas, explore thoughts, and find clarity." />
+    <meta property="og:image" content="/lumen-og.png" />
+    <meta property="og:site_name" content="Lumen" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://lumen.app/" />
+    <meta property="twitter:title" content="Lumen - A Thinking Space for Clarity" />
+    <meta property="twitter:description" content="A minimalist writing environment designed for deep thinking." />
+    <meta property="twitter:image" content="/lumen-og.png" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/lumen-logo.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=JetBrains+Mono:wght@400&family=Work+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <!-- KateX for math rendering -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    
     <style>
       :root {
         --bg-paper: #FAFAF9;     /* Stone 50 */
@@ -32,7 +68,6 @@
         -moz-osx-font-smoothing: grayscale;
       }
 
-      /* Scrollbar Styling - Minimalist */
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -48,26 +83,23 @@
         background: transparent;
       }
 
-      /* Selection */
       ::selection {
-        background: rgba(60, 95, 90, 0.15); /* Accent with low opacity */
+        background: rgba(60, 95, 90, 0.15);
         color: inherit;
       }
 
-      /* Editor Specifics */
       .editor-textarea {
         line-height: 1.75;
         font-feature-settings: "kern", "liga", "onum";
       }
 
-      /* Transitions */
       .fade-enter { opacity: 0; }
       .fade-enter-active { opacity: 1; transition: opacity 300ms ease-in-out; }
       .fade-exit { opacity: 1; }
       .fade-exit-active { opacity: 0; transition: opacity 300ms ease-in-out; }
-
     </style>
-  <script type="importmap">
+    
+    <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.3",
@@ -82,10 +114,9 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
-</head>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
-</body>
+  </body>
 </html>

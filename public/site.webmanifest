@@ -1,0 +1,21 @@
+{
+  "name": "Lumen",
+  "short_name": "Lumen",
+  "description": "A thinking space for clarity",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF9",
+  "theme_color": "#292524",
+  "icons": [
+    {
+      "src": "/lumen-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
