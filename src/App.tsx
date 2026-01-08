@@ -17,7 +17,10 @@ import {
   CloudOff,
   CloudFog,
   User,
-  LogOut
+  LogOut,
+  Pencil,
+  Check,
+  MoreVertical
 } from 'lucide-react';
 import { Note, AppState } from './types';
 import Editor, { EditorHandle } from './components/Editor';
@@ -100,6 +103,8 @@ export default function App() {
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<EditorHandle>(null);
@@ -420,6 +425,57 @@ export default function App() {
     setNoteToDelete(id);
   };
 
+  const startEditingTitle = (note: Note) => {
+    setEditingNoteId(note.id);
+    setEditingTitle(note.title);
+  };
+
+  const saveTitleEdit = async () => {
+    if (!editingNoteId || !user) return;
+    
+    const trimmedTitle = editingTitle.trim();
+    if (!trimmedTitle) {
+      setEditingNoteId(null);
+      setEditingTitle('');
+      return;
+    }
+
+    const updatedNotes = notes.map(n => 
+      n.id === editingNoteId 
+        ? { ...n, title: trimmedTitle, updatedAt: Date.now() } 
+        : n
+    );
+    
+    setNotes(updatedNotes);
+    
+    const activeNote = updatedNotes.find(n => n.id === editingNoteId);
+    if (activeNote) {
+      setSyncStatus('syncing');
+      const success = await supabaseUpdateNote(activeNote, user.id);
+      if (success) {
+        setSyncStatus('synced');
+      } else {
+        setSyncStatus('error');
+      }
+    }
+    
+    setEditingNoteId(null);
+    setEditingTitle('');
+  };
+
+  const cancelTitleEdit = () => {
+    setEditingNoteId(null);
+    setEditingTitle('');
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      saveTitleEdit();
+    } else if (e.key === 'Escape') {
+      cancelTitleEdit();
+    }
+  };
+
   const executeDelete = async () => {
     if (!noteToDelete || !user) return;
     
@@ -520,13 +576,59 @@ export default function App() {
                 ${activeNoteId === note.id ? 'opacity-100' : 'opacity-60 hover:opacity-90'}
               `}
             >
-              <h3 className={`font-body text-lg leading-tight mb-1 ${activeNoteId === note.id ? 'font-medium' : 'font-normal'}`}>
-                {note.title || 'Untitled'}
-              </h3>
-              <div className="flex items-center gap-2 font-ui text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
-                <span>{new Date(note.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                {activeNoteId === note.id && <div className="w-1 h-1 rounded-full bg-[var(--accent)]" />}
-              </div>
+              {editingNoteId === note.id ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onKeyDown={handleTitleKeyDown}
+                    onBlur={saveTitleEdit}
+                    className="flex-1 bg-transparent border-b border-[var(--accent)] py-0.5 text-sm font-body focus:outline-none"
+                    autoFocus
+                  />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); saveTitleEdit(); }}
+                    className="text-[var(--accent)] hover:text-[var(--text-body)]"
+                  >
+                    <Check size={14} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); cancelTitleEdit(); }}
+                    className="text-[var(--text-muted)] hover:text-[var(--text-body)]"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between group/note">
+                    <h3 className={`flex-1 font-body text-lg leading-tight mb-1 ${activeNoteId === note.id ? 'font-medium' : 'font-normal'} truncate`}>
+                      {note.title || 'Untitled'}
+                    </h3>
+                    <div className="flex items-center gap-1 opacity-0 group-hover/note:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); startEditingTitle(note); }}
+                        className="p-1 text-[var(--text-muted)] hover:text-[var(--text-body)] hover:bg-[var(--bg-sidebar)] rounded"
+                        title="Edit title"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); requestDeleteNote(note.id); }}
+                        className="p-1 text-[var(--text-muted)] hover:text-red-600 hover:bg-red-50 rounded"
+                        title="Delete note"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 font-ui text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+                    <span>{new Date(note.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    {activeNoteId === note.id && <div className="w-1 h-1 rounded-full bg-[var(--accent)]" />}
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -649,15 +751,15 @@ export default function App() {
                   className="w-full bg-transparent border-none p-0 text-3xl md:text-4xl font-body font-bold text-[var(--text-body)] placeholder:text-[var(--border-subtle)] focus:outline-none focus:ring-0 mb-8 leading-tight tracking-tight"
                 />
 
-                <div className="flex-1 relative">
+                <div className="flex-1 flex flex-col h-full overflow-hidden">
                   {mode === 'write' ? (
-                     <div className="animate-[fade-in_0.3s_ease-out]">
-                       <Editor 
-                         ref={editorRef}
-                         content={activeNote.content} 
-                         onChange={handleUpdateNote} 
-                       />
-                     </div>
+                    <div className="animate-[fade-in_0.3s_ease-out] flex-1 flex flex-col">
+                      <Editor 
+                        ref={editorRef}
+                        content={activeNote.content} 
+                        onChange={handleUpdateNote} 
+                      />
+                    </div>
                   ) : (
                     <div className="animate-[fade-in_0.3s_ease-out]">
                       <Preview content={activeNote.content} />
