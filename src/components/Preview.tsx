@@ -4,13 +4,12 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import mermaid from 'mermaid';
-import { Layers } from 'lucide-react';
+import { Layers, Image as ImageIcon } from 'lucide-react';
 
 interface PreviewProps {
   content: string;
 }
 
-// Initialize Mermaid with a clean, monochrome theme
 mermaid.initialize({
   startOnLoad: false,
   theme: 'base',
@@ -25,6 +24,48 @@ mermaid.initialize({
     tertiaryColor: '#FFFFFF',
   }
 });
+
+const ImageBlock = ({ src, alt }: { src: string; alt?: string }) => {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  if (error) {
+    return (
+      <figure className="my-8 p-6 border border-red-200 bg-red-50 rounded-sm">
+        <div className="flex flex-col items-center justify-center text-red-800">
+          <ImageIcon size={24} className="mb-2" />
+          <p className="font-ui text-sm mb-2">Unable to load image</p>
+          <p className="font-mono text-xs text-red-600 break-all text-center">{src}</p>
+        </div>
+      </figure>
+    );
+  }
+
+  return (
+    <figure className="my-8">
+      {!loaded && (
+        <div className="flex items-center justify-center p-12 bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] rounded-sm">
+          <div className="w-8 h-8 border-2 border-[var(--text-muted)] border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+      <img
+        src={src}
+        alt={alt || 'Image'}
+        className={`w-full max-h-[600px] object-contain rounded-sm shadow-sm border border-[var(--border-subtle)] ${
+          loaded ? 'opacity-100' : 'opacity-0 hidden'
+        }`}
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+        style={{ display: loaded ? 'block' : 'none' }}
+      />
+      {alt && (
+        <figcaption className="mt-3 text-xs font-ui text-[var(--text-muted)] text-center italic">
+          {alt}
+        </figcaption>
+      )}
+    </figure>
+  );
+};
 
 const MermaidBlock = ({ code }: { code: string }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -78,7 +119,6 @@ const CodeBlock = ({ children, className, ...props }: any) => {
     return <MermaidBlock code={codeContent} />;
   }
 
-  // Inline Code
   if (!match) {
     return (
       <code className="bg-[#F5F5F4] text-[var(--text-body)] px-1.5 py-0.5 rounded text-[0.85em] font-mono border border-[var(--border-subtle)]" {...props}>
@@ -87,7 +127,6 @@ const CodeBlock = ({ children, className, ...props }: any) => {
     );
   }
 
-  // Block Code
   return (
     <div className="my-8 rounded-sm overflow-hidden border border-[var(--border-subtle)] bg-[#F5F5F4]">
       <div className="px-4 py-1.5 border-b border-[var(--border-subtle)] flex justify-between items-center bg-[#E7E5E4]/30">
@@ -113,14 +152,19 @@ const Preview: React.FC<PreviewProps> = ({ content }) => {
       prose-strong:font-semibold prose-strong:text-[var(--text-body)]
       prose-blockquote:border-l-2 prose-blockquote:border-[var(--accent)] prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:text-[var(--text-muted)] prose-blockquote:font-body
       prose-ul:list-disc prose-ul:pl-6 prose-li:marker:text-[var(--text-muted)]
-      prose-img:rounded-sm prose-img:shadow-sm
+      prose-img:rounded-sm prose-img:shadow-sm prose-img:my-8
     ">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={{
           code: CodeBlock,
-          // Custom renderers to strip extra margin if needed or add classes
+          img: ({ node, src, alt, ...props }: any) => {
+            if (src) {
+              return <ImageBlock src={src} alt={alt} />;
+            }
+            return <img src={undefined} alt={undefined} {...props} />;
+          },
           p: ({node, ...props}) => <p className="mb-6" {...props} />,
           hr: ({node, ...props}) => <hr className="my-12 border-t border-[var(--border-subtle)] w-1/3 mx-auto" {...props} />,
         }}
