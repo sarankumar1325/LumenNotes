@@ -1,4 +1,14 @@
 import React, { useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
+import { useToast } from './Toast';
+import { 
+  isClipboardImage, 
+  readClipboardImage, 
+  blobToBase64, 
+  createImageMarkdown,
+  MAX_IMAGE_SIZE,
+  formatFileSize,
+  isValidImageType
+} from '../utils/clipboardImage';
 
 interface EditorProps {
   content: string;
@@ -27,6 +37,7 @@ const isImageUrl = (url: string): boolean => {
 
 const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { showToast } = useToast();
 
   useImperativeHandle(ref, () => ({
     focus: () => {
@@ -54,40 +65,75 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange }, ref
     }
   }));
 
+  const insertAtCursor = (text: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentVal = textarea.value;
+    
+    const newVal = 
+      currentVal.substring(0, start) + 
+      text + 
+      currentVal.substring(end);
+    
+    onChange(newVal);
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + text.length;
+    }, 0);
+  };
+
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const handlePaste = (e: ClipboardEvent) => {
+    const handlePaste = async (e: ClipboardEvent) => {
       const text = e.clipboardData?.getData('text');
       
       if (text && isImageUrl(text)) {
         e.preventDefault();
-        const imageMarkdown = `\n![Image](${text})\n`;
-        const textarea = textareaRef.current;
-        if (textarea) {
-          const start = textarea.selectionStart;
-          const end = textarea.selectionEnd;
-          const currentVal = textarea.value;
-          
-          const newVal = 
-            currentVal.substring(0, start) + 
-            imageMarkdown + 
-            currentVal.substring(end);
-          
-          onChange(newVal);
+        insertAtCursor(`\n![Image](${text})\n`);
+        showToast('success', 'Image pasted');
+        return;
+      }
 
-          setTimeout(() => {
-            textarea.focus();
-            textarea.selectionStart = textarea.selectionEnd = start + imageMarkdown.length;
-          }, 0);
+      if (isClipboardImage(e)) {
+        e.preventDefault();
+        
+        const blob = await readClipboardImage(e);
+        if (!blob) {
+          showToast('error', 'Failed to read image');
+          return;
+        }
+
+        if (blob.size > MAX_IMAGE_SIZE) {
+          showToast('error', `Image too large (max ${formatFileSize(MAX_IMAGE_SIZE)})`);
+          return;
+        }
+
+        if (!isValidImageType(blob.type)) {
+          showToast('error', 'Invalid image type');
+          return;
+        }
+
+        try {
+          const base64 = await blobToBase64(blob);
+          const mimeType = blob.type;
+          const imageMarkdown = `\n![Image](${base64})\n`;
+          insertAtCursor(imageMarkdown);
+          showToast('success', 'Image pasted');
+        } catch (error) {
+          showToast('error', 'Failed to paste image');
         }
       }
     };
 
     textarea.addEventListener('paste', handlePaste);
     return () => textarea.removeEventListener('paste', handlePaste);
-  }, [onChange]);
+  }, [onChange, showToast]);
 
   return (
     <textarea
@@ -96,7 +142,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange }, ref
       value={content}
       onChange={(e) => onChange(e.target.value)}
       spellCheck={false}
-      placeholder="Start writing... Paste an image URL to insert it."
+      placeholder="Start writing... Paste an image URL or copy-paste an image directly."
     />
   );
 });

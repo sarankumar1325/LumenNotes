@@ -35,6 +35,7 @@ import {
   SyncStatus
 } from './supabase';
 import { useAuth } from './auth/AuthContext';
+import { ToastProvider } from './components/Toast';
 
 const STORAGE_KEY = 'lumen_notes_v2';
 
@@ -524,7 +525,8 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-screen bg-[var(--bg-paper)] text-[var(--text-body)] transition-colors duration-500 relative overflow-hidden">
+    <ToastProvider>
+      <div className="flex h-screen w-screen bg-[var(--bg-paper)] text-[var(--text-body)] transition-colors duration-500 relative overflow-hidden">
       
       <aside 
         className={`
@@ -884,6 +886,7 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </ToastProvider>
   );
 }
