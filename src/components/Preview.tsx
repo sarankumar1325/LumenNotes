@@ -31,18 +31,18 @@ const ImageBlock = ({ src, alt }: { src: string; alt?: string }) => {
 
   if (error) {
     return (
-      <figure className="my-8 p-6 border border-red-200 bg-red-50 rounded-sm">
+      <div className="my-8 p-6 border border-red-200 bg-red-50 rounded-sm">
         <div className="flex flex-col items-center justify-center text-red-800">
           <ImageIcon size={24} className="mb-2" />
           <p className="font-ui text-sm mb-2">Unable to load image</p>
           <p className="font-mono text-xs text-red-600 break-all text-center">{src}</p>
         </div>
-      </figure>
+      </div>
     );
   }
 
   return (
-    <figure className="my-8">
+    <div className="my-8">
       {!loaded && (
         <div className="flex items-center justify-center p-12 bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] rounded-sm">
           <div className="w-8 h-8 border-2 border-[var(--text-muted)] border-t-transparent rounded-full animate-spin" />
@@ -59,11 +59,11 @@ const ImageBlock = ({ src, alt }: { src: string; alt?: string }) => {
         style={{ display: loaded ? 'block' : 'none' }}
       />
       {alt && (
-        <figcaption className="mt-3 text-xs font-ui text-[var(--text-muted)] text-center italic">
+        <p className="mt-3 text-xs font-ui text-[var(--text-muted)] text-center italic">
           {alt}
-        </figcaption>
+        </p>
       )}
-    </figure>
+    </div>
   );
 };
 
@@ -96,17 +96,17 @@ const MermaidBlock = ({ code }: { code: string }) => {
   );
 
   return (
-    <figure className="my-10 flex flex-col items-center">
+    <div className="my-10 flex flex-col items-center">
       <div 
         className="p-6 md:p-10 bg-white border border-[var(--border-subtle)] rounded-sm shadow-sm w-full flex justify-center overflow-x-auto"
         dangerouslySetInnerHTML={{ __html: svg }} 
         ref={ref}
       />
-      <figcaption className="mt-3 text-xs font-ui text-[var(--text-muted)] tracking-wider uppercase flex items-center gap-1.5">
+      <p className="mt-3 text-xs font-ui text-[var(--text-muted)] tracking-wider uppercase flex items-center gap-1.5">
         <Layers size={12} />
         Structural Diagram
-      </figcaption>
-    </figure>
+      </p>
+    </div>
   );
 };
 
